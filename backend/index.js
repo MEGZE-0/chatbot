@@ -14,11 +14,6 @@ const PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN;
 const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
 const MESSAGES_FILE = path.join(__dirname, 'messages.json');
 
-// Load SSL certificates
-const sslOptions = {
-    key: fs.readFileSync(path.join(__dirname, 'certs', 'localhost-key.pem')), // Path to your key file
-    cert: fs.readFileSync(path.join(__dirname, 'certs', 'localhost.pem')), // Path to your certificate file
-  };
 
 // Logger setup
 const logger = winston.createLogger({
@@ -156,10 +151,9 @@ app.get('/messages', (req, res) => {
   });
 });
 
-const port = process.env.PORT || 443;
+const port = process.env.PORT || 3000;
 
-// Start HTTPS server
-https.createServer(sslOptions, app).listen(port, () => {
-    logger.info(`Server is listening on https://www.plusdigitalpd.com:${port}`);
+app.listen(port, () => {
+    logger.info(`Server is listening on http://www.plusdigitalpd.com:${port}`);
   });
   
