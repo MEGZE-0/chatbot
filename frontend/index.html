@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Messenger Bot</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        #messages {
+            margin-top: 20px;
+        }
+        .message {
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+        }
+        .sender {
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Messenger Bot</h1>
+    <p>Your bot is now live and should respond to messages on Facebook Messenger.</p>
+    <button onclick="fetchMessages()">Load Messages</button>
+    <div id="messages"></div>
+
+    <script>
+        function fetchMessages() {
+            fetch('/messages')
+                .then(response => response.json())
+                .then(messages => {
+                    const messagesDiv = document.getElementById('messages');
+                    messagesDiv.innerHTML = ''; // Clear previous messages
+
+                    messages.forEach(msg => {
+                        const messageDiv = document.createElement('div');
+                        messageDiv.className = 'message';
+                        messageDiv.innerHTML = `<span class="sender">Sender ${msg.sender}:</span> ${msg.message}`;
+                        messagesDiv.appendChild(messageDiv);
+                    });
+                })
+                .catch(error => console.error('Error fetching messages:', error));
+        }
+    </script>
+</body>
+</html>
