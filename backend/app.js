@@ -4,16 +4,10 @@ const bodyParser = require('body-parser');
 const request = require('request');
 const path = require('path');
 const fs = require('fs');
-const https = require('https');
 const winston = require('winston');
 const rateLimit = require('express-rate-limit');
 const { body, validationResult } = require('express-validator');
 const WebSocket = require('ws'); // WebSocket setup for real-time updates
-
-// SSL Certificate setup
-const privateKey = fs.readFileSync(path.join(__dirname, '../sslcert', 'key.pem'), 'utf8');
-const certificate = fs.readFileSync(path.join(__dirname, '../sslcert', 'cert.pem'), 'utf8');
-const credentials = { key: privateKey, cert: certificate };
 
 const app = express();
 const PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN;
@@ -221,9 +215,9 @@ app.get('/messages', (req, res) => {
   });
 });
 
-// HTTPS server
+// HTTP server
 const port = process.env.PORT || 3000;
 
-https.createServer(credentials, app).listen(port, () => {
-  logger.info(`HTTPS server is listening on port ${port}`);
+app.listen(port, () => {
+  logger.info(`Server is listening on port ${port}`);
 });
