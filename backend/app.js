@@ -8,11 +8,11 @@ const https = require('https');
 const winston = require('winston');
 const rateLimit = require('express-rate-limit');
 const { body, validationResult } = require('express-validator');
+const WebSocket = require('ws'); // WebSocket setup for real-time updates
 
 // SSL Certificate setup
 const privateKey = fs.readFileSync(path.join(__dirname, '../sslcert', 'key.pem'), 'utf8');
 const certificate = fs.readFileSync(path.join(__dirname, '../sslcert', 'cert.pem'), 'utf8');
-
 const credentials = { key: privateKey, cert: certificate };
 
 const app = express();
@@ -45,6 +45,15 @@ app.use(bodyParser.urlencoded({ extended: true }));
 
 // Serve static files from the 'frontend' directory
 app.use(express.static(path.join(__dirname, '../frontend')));
+
+// WebSocket setup for real-time message updates
+const wss = new WebSocket.Server({ noServer: true });
+wss.on('connection', (ws) => {
+  logger.info('WebSocket connected');
+  ws.on('message', (message) => {
+    logger.info(`Received WebSocket message: ${message}`);
+  });
+});
 
 // Serve the index.html file at the root URL
 app.get('/', (req, res) => {
@@ -93,6 +102,13 @@ app.post('/webhook', [
       // Determine response based on keywords
       let responseText = getResponseBasedOnMessage(message);
       sendTextMessage(sender, responseText);
+
+      // Broadcast new message to WebSocket clients for real-time updates
+      wss.clients.forEach((client) => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(JSON.stringify({ sender, message }));
+        }
+      });
     } else if (event.postback && event.postback.payload) {
       // Handle Postback payloads
       const payload = event.postback.payload;
@@ -103,6 +119,47 @@ app.post('/webhook', [
 
   res.sendStatus(200);
 });
+
+// Structured message template (example with buttons)
+function sendTemplateMessage(sender, text) {
+  const messageData = {
+    attachment: {
+      type: 'template',
+      payload: {
+        template_type: 'button',
+        text: text,
+        buttons: [
+          {
+            type: 'web_url',
+            url: 'https://www.example.com',
+            title: 'Visit Website',
+          },
+          {
+            type: 'postback',
+            title: 'Start Chat',
+            payload: 'USER_START',
+          },
+        ],
+      },
+    },
+  };
+
+  request({
+    url: 'https://graph.facebook.com/v2.6/me/messages',
+    qs: { access_token: PAGE_ACCESS_TOKEN },
+    method: 'POST',
+    json: {
+      recipient: { id: sender },
+      message: messageData,
+    },
+  }, (error, response, body) => {
+    if (error) {
+      logger.error('Error sending template message: ', error);
+    } else if (response.body.error) {
+      logger.error('Error: ', response.body.error);
+    }
+  });
+}
 
 // Determine response based on message content
 function getResponseBasedOnMessage(message) {
