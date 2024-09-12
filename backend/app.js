@@ -4,16 +4,21 @@ const bodyParser = require('body-parser');
 const request = require('request');
 const path = require('path');
 const fs = require('fs');
-const https = require('https'); // Add the https module
+const https = require('https');
 const winston = require('winston');
 const rateLimit = require('express-rate-limit');
 const { body, validationResult } = require('express-validator');
+
+// SSL Certificate setup
+const privateKey = fs.readFileSync(path.join(__dirname, '../sslcert', 'key.pem'), 'utf8');
+const certificate = fs.readFileSync(path.join(__dirname, '../sslcert', 'cert.pem'), 'utf8');
+
+const credentials = { key: privateKey, cert: certificate };
 
 const app = express();
 const PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN;
 const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
 const MESSAGES_FILE = path.join(__dirname, 'messages.json');
-
 
 // Logger setup
 const logger = winston.createLogger({
@@ -75,17 +80,25 @@ app.post('/webhook', [
   for (let i = 0; i < messaging_events.length; i++) {
     const event = messaging_events[i];
     const sender = event.sender.id;
-    const message = event.message.text;
 
-    // Display the received message
-    logger.info(`Received message: ${message}`);
+    if (event.message && event.message.text) {
+      const message = event.message.text;
 
-    // Store message
-    storeMessage(sender, message);
+      // Display the received message
+      logger.info(`Received message: ${message}`);
 
-    // Determine response based on keywords
-    let responseText = getResponseBasedOnMessage(message);
-    sendTextMessage(sender, responseText);
+      // Store message
+      storeMessage(sender, message);
+
+      // Determine response based on keywords
+      let responseText = getResponseBasedOnMessage(message);
+      sendTextMessage(sender, responseText);
+    } else if (event.postback && event.postback.payload) {
+      // Handle Postback payloads
+      const payload = event.postback.payload;
+      logger.info(`Postback received with payload: ${payload}`);
+      sendTextMessage(sender, `You clicked: ${payload}`);
+    }
   }
 
   res.sendStatus(200);
@@ -151,9 +164,9 @@ app.get('/messages', (req, res) => {
   });
 });
 
+// HTTPS server
 const port = process.env.PORT || 3000;
 
-app.listen(port, () => {
-    logger.info(`Server is listening on http://www.plusdigitalpd.com:${port}`);
-  });
-  
+https.createServer(credentials, app).listen(port, () => {
+  logger.info(`HTTPS server is listening on port ${port}`);
+});
